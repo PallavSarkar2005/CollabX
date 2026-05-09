@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { Toaster } from "react-hot-toast"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CollabX",
-  description: "Real-time collaborative coding platform"
+  description: "Modern Collaborative Coding Platform"
 }
 
 export default function RootLayout({
@@ -27,11 +28,20 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#07080d] text-white`}
       >
-        <div className="fixed inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(120,119,198,0.25),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(56,189,248,0.18),transparent_50%)]" />
-        </div>
+
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#11131a",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.08)"
+            }
+          }}
+        />
+
         {children}
+
       </body>
     </html>
   )
