@@ -6,21 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "@/services/socket";
 import { useParams } from "next/navigation";
 import { runCode } from "@/services/codeService";
-
+import { useFiles } from "@/context/FileContext";
 import TerminalPanel from "../terminal/TerminalPanel";
 import EditorToolbar from "./EditorToolbar";
 import FileTabs from "./FileTabs";
-
 import { Activity, Wifi, WifiOff } from "lucide-react";
-
 import toast from "react-hot-toast";
-
-interface FileType {
-  id: string;
-  name: string;
-  language: string;
-  content: string;
-}
 
 export default function CodeEditor() {
   const [output, setOutput] = useState("");
@@ -29,22 +20,6 @@ export default function CodeEditor() {
 
   const [connected, setConnected] = useState(false);
 
-  const [files, setFiles] = useState<FileType[]>([
-    {
-      id: "1",
-      name: "main.js",
-      language: "javascript",
-      content: `console.log("🚀 Welcome to CollabX");
-
-for (let i = 1; i <= 5; i++) {
-  console.log("Execution:", i);
-}
-`,
-    },
-  ]);
-
-  const [activeFile, setActiveFile] = useState("1");
-
   const [editorTheme, setEditorTheme] = useState("vs-dark");
 
   const isRemoteChange = useRef(false);
@@ -52,6 +27,16 @@ for (let i = 1; i <= 5; i++) {
   const params = useParams();
 
   const roomId = params.roomId as string;
+
+  const {
+    files,
+
+    setFiles,
+
+    activeFile,
+
+    setActiveFile,
+  } = useFiles();
 
   const currentFile = files.find((file) => file.id === activeFile)!;
 

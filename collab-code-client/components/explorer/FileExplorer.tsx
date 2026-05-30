@@ -1,80 +1,148 @@
-"use client"
+"use client";
 
-import {
-  ChevronRight,
-  FileCode2,
-  Folder
-} from "lucide-react"
+import { ChevronRight, FileCode, Plus } from "lucide-react";
 
-interface Props {
-  files: {
-    id: string
-    name: string
-  }[]
-  activeFile: string
-  setActiveFile: (id: string) => void
-}
+import { motion } from "framer-motion";
 
-export default function FileExplorer({
-  files,
-  activeFile,
-  setActiveFile
-}: Props) {
+import { useFiles } from "@/context/FileContext";
+
+export default function FileExplorer() {
+  const {
+    files,
+
+    activeFile,
+
+    setActiveFile,
+
+    setFiles,
+  } = useFiles();
+
+  const addFile = () => {
+    const newFile = {
+      id: Date.now().toString(),
+
+      name: `file${files.length + 1}.js`,
+
+      language: "javascript",
+
+      content: "",
+    };
+
+    setFiles([...files, newFile]);
+
+    setActiveFile(newFile.id);
+  };
 
   return (
-    <div className="h-full bg-[#0b0d13] border-r border-white/10 flex flex-col">
-
-      <div className="h-12 border-b border-white/10 flex items-center px-4 gap-2">
-
-        <Folder className="w-4 h-4 text-blue-400" />
-
-        <span className="text-sm font-medium text-white/80">
+    <div
+      className="
+      h-full
+      flex
+      flex-col
+      bg-[#070b11]
+      border-r
+      border-white/10
+      "
+    >
+      <div
+        className="
+        h-14
+        flex
+        items-center
+        justify-between
+        px-4
+        border-b
+        border-white/10
+        "
+      >
+        <h2
+          className="
+          text-sm
+          font-semibold
+          uppercase
+          tracking-wider
+          "
+        >
           Explorer
-        </span>
+        </h2>
 
+        <button
+          onClick={addFile}
+          className="
+          w-8
+          h-8
+          rounded-lg
+          bg-white/5
+          hover:bg-white/10
+          flex
+          items-center
+          justify-center
+          transition-all
+          "
+        >
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-
-        {files.map((file) => {
-
-          const active = activeFile === file.id
-
-          return (
-            <button
-              key={file.id}
-              onClick={() => setActiveFile(file.id)}
-              className={`
+      <div
+        className="
+        flex-1
+        overflow-y-auto
+        p-2
+        space-y-1
+        "
+      >
+        {files.map((file) => (
+          <motion.button
+            key={file.id}
+            whileHover={{
+              x: 4,
+            }}
+            onClick={() => setActiveFile(file.id)}
+            className={`
               w-full
               flex
               items-center
-              gap-2
+              gap-3
               px-3
               py-2
-              rounded-lg
+              rounded-xl
               text-sm
               transition-all
-              ${active
-                ? "bg-blue-500/20 text-white"
-                : "hover:bg-white/[0.05] text-white/60"
+
+              ${
+                activeFile === file.id
+                  ? "bg-blue-500/20 border border-blue-500/30"
+                  : "hover:bg-white/5"
               }
-              `}
+            `}
+          >
+            <ChevronRight
+              className="
+              w-4
+              h-4
+              text-white/40
+              "
+            />
+
+            <FileCode
+              className="
+              w-4
+              h-4
+              text-cyan-400
+              "
+            />
+
+            <span
+              className="
+              truncate
+              "
             >
-
-              <ChevronRight className="w-3 h-3" />
-
-              <FileCode2 className="w-4 h-4" />
-
               {file.name}
-
-            </button>
-
-          )
-
-        })}
-
+            </span>
+          </motion.button>
+        ))}
       </div>
-
     </div>
-  )
+  );
 }
