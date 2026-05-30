@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Bot, Code2, Wand2, ArrowUp } from "lucide-react";
+import { Bot, Code2, Wand2, ArrowUp } from "lucide-react";
 
 import { motion } from "framer-motion";
 
@@ -12,62 +12,15 @@ export default function AIAssistant() {
       flex
       flex-col
       bg-[#0b0f15]/90
-      backdrop-blur-xl
+      min-h-0
+      overflow-hidden
       "
     >
       <div
         className="
-        h-12
-        px-4
-        border-b
-        border-white/[0.04]
-        flex
-        items-center
-        justify-between
-        "
-      >
-        <div
-          className="
-          flex
-          items-center
-          gap-2
-          "
-        >
-          <Sparkles
-            className="
-            w-4
-            h-4
-            text-purple-400
-            "
-          />
-
-          <span
-            className="
-            text-[11px]
-            uppercase
-            tracking-[0.25em]
-            text-white/40
-            "
-          >
-            AI Assistant
-          </span>
-        </div>
-
-        <div
-          className="
-          w-2
-          h-2
-          rounded-full
-          bg-purple-400
-          animate-pulse
-          "
-        />
-      </div>
-
-      <div
-        className="
         flex-1
         overflow-y-auto
+        min-h-0
         p-4
         space-y-4
         "
@@ -263,6 +216,8 @@ export default function AIAssistant() {
         p-4
         border-t
         border-white/[0.04]
+        bg-[#0b0f15]
+        shrink-0
         "
       >
         <div

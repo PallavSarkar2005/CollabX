@@ -222,7 +222,7 @@ export default function RoomPage() {
 
           <div
             className="
-            h-[150px]
+            h-[240px]
             shrink-0
             border-t
             border-white/[0.04]

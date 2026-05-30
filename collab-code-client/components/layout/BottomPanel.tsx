@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
 import TerminalPanel from "../terminal/TerminalPanel";
-
 import ChatBox from "../chat/ChatBox";
 
 export default function BottomPanel({
@@ -89,24 +87,43 @@ export default function BottomPanel({
 
       <div
         className="
-        flex-1
-        min-h-0
-        overflow-hidden
-        "
+  flex-1
+  min-h-0
+  relative
+  overflow-hidden
+  "
       >
-        {activeTab === "terminal" ? (
+        <div
+          className={`
+      absolute
+      inset-0
+      transition-all
+
+      ${
+        activeTab === "terminal"
+          ? "opacity-100 z-10"
+          : "opacity-0 pointer-events-none"
+      }
+    `}
+        >
           <TerminalPanel output={output} loading={loading} />
-        ) : (
-          <div
-            className="
-            h-full
-            p-3
-            overflow-hidden
-            "
-          >
-            <ChatBox />
-          </div>
-        )}
+        </div>
+
+        <div
+          className={`
+      absolute
+      inset-0
+      transition-all
+
+      ${
+        activeTab === "chat"
+          ? "opacity-100 z-10"
+          : "opacity-0 pointer-events-none"
+      }
+    `}
+        >
+          <ChatBox />
+        </div>
       </div>
     </div>
   );
