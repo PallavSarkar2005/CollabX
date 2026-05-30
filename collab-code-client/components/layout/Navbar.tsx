@@ -32,7 +32,7 @@ export default function Navbar() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
       className="
-      h-14
+      h-12
       border-b
       border-white/10
       bg-[#0b0d13]/90

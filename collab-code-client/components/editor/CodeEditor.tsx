@@ -1,23 +1,36 @@
 "use client";
 
 import Editor from "@monaco-editor/react";
+
 import { useEffect, useRef, useState } from "react";
 
 import { socket } from "@/services/socket";
+
 import { useParams } from "next/navigation";
+
 import { runCode } from "@/services/codeService";
+
 import { useFiles } from "@/context/FileContext";
-import TerminalPanel from "../terminal/TerminalPanel";
+
 import EditorToolbar from "./EditorToolbar";
+
 import FileTabs from "./FileTabs";
+
 import { Activity, Wifi, WifiOff } from "lucide-react";
+
 import toast from "react-hot-toast";
 
-export default function CodeEditor() {
-  const [output, setOutput] = useState("");
+interface CodeEditorProps {
+  setOutput: React.Dispatch<React.SetStateAction<string>>;
 
-  const [loading, setLoading] = useState(false);
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+}
 
+export default function CodeEditor({
+  setOutput,
+
+  setLoading,
+}: CodeEditorProps) {
   const [connected, setConnected] = useState(false);
 
   const [editorTheme, setEditorTheme] = useState("vs-dark");
@@ -43,24 +56,59 @@ export default function CodeEditor() {
   useEffect(() => {
     socket.connect();
 
-    socket.on("connect", () => {
-      setConnected(true);
+    socket.on(
+      "connect",
 
-      const username = "User-" + socket.id?.slice(0, 4);
+      () => {
+        setConnected(true);
 
-      socket.emit("join-room", {
-        roomId,
-        username,
-      });
-    });
+        const username = "User-" + socket.id?.slice(0, 4);
 
-    socket.on("disconnect", () => {
-      setConnected(false);
-    });
+        socket.emit(
+          "join-room",
+
+          {
+            roomId,
+            username,
+          },
+        );
+      },
+    );
+
+    socket.on(
+      "disconnect",
+
+      () => {
+        setConnected(false);
+      },
+    );
+
+    socket.on(
+      "files-updated",
+
+      (updatedFiles) => {
+        isRemoteChange.current = true;
+
+        setFiles(updatedFiles);
+      },
+    );
+
+    socket.on(
+      "active-file-updated",
+
+      (fileId) => {
+        setActiveFile(fileId);
+      },
+    );
 
     return () => {
       socket.off("connect");
+
       socket.off("disconnect");
+
+      socket.off("files-updated");
+
+      socket.off("active-file-updated");
     };
   }, [roomId]);
 
@@ -75,6 +123,7 @@ export default function CodeEditor() {
       if (file.id === activeFile) {
         return {
           ...file,
+
           content: value || "",
         };
       }
@@ -83,6 +132,16 @@ export default function CodeEditor() {
     });
 
     setFiles(updated);
+
+    socket.emit(
+      "file-update",
+
+      {
+        roomId,
+
+        files: updated,
+      },
+    );
   };
 
   const addFile = () => {
@@ -96,9 +155,31 @@ export default function CodeEditor() {
       content: "",
     };
 
-    setFiles([...files, newFile]);
+    const updatedFiles = [...files, newFile];
+
+    setFiles(updatedFiles);
 
     setActiveFile(newFile.id);
+
+    socket.emit(
+      "file-update",
+
+      {
+        roomId,
+
+        files: updatedFiles,
+      },
+    );
+
+    socket.emit(
+      "active-file-change",
+
+      {
+        roomId,
+
+        activeFile: newFile.id,
+      },
+    );
 
     toast.success("New file created");
   };
@@ -150,7 +231,19 @@ export default function CodeEditor() {
       <FileTabs
         files={files}
         activeFile={activeFile}
-        setActiveFile={setActiveFile}
+        setActiveFile={(fileId) => {
+          setActiveFile(fileId);
+
+          socket.emit(
+            "active-file-change",
+
+            {
+              roomId,
+
+              activeFile: fileId,
+            },
+          );
+        }}
         addFile={addFile}
         closeFile={closeFile}
       />
@@ -183,7 +276,12 @@ export default function CodeEditor() {
             text-white/60
             "
           >
-            <Activity size={14} className="text-green-400" />
+            <Activity
+              size={14}
+              className="
+              text-green-400
+              "
+            />
 
             {currentFile.name}
           </div>
@@ -241,15 +339,37 @@ export default function CodeEditor() {
           >
             {connected ? (
               <>
-                <Wifi size={14} className="text-green-400" />
+                <Wifi
+                  size={14}
+                  className="
+                  text-green-400
+                  "
+                />
 
-                <span className="text-green-400">Connected</span>
+                <span
+                  className="
+                  text-green-400
+                  "
+                >
+                  Connected
+                </span>
               </>
             ) : (
               <>
-                <WifiOff size={14} className="text-red-400" />
+                <WifiOff
+                  size={14}
+                  className="
+                  text-red-400
+                  "
+                />
 
-                <span className="text-red-400">Offline</span>
+                <span
+                  className="
+                  text-red-400
+                  "
+                >
+                  Offline
+                </span>
               </>
             )}
           </div>
@@ -272,9 +392,18 @@ export default function CodeEditor() {
           });
 
           setFiles(updated);
+
+          socket.emit(
+            "file-update",
+
+            {
+              roomId,
+
+              files: updated,
+            },
+          );
         }}
         run={executeCode}
-        loading={loading}
       />
 
       <div
@@ -322,8 +451,6 @@ export default function CodeEditor() {
           }}
         />
       </div>
-
-      <TerminalPanel output={output} loading={loading} />
     </div>
   );
 }

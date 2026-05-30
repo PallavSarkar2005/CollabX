@@ -128,6 +128,30 @@ io.on("connection", (socket) => {
   );
 
   socket.on(
+    "file-update",
+
+    ({ roomId, files }) => {
+      socket.to(roomId).emit(
+        "files-updated",
+
+        files,
+      );
+    },
+  );
+
+  socket.on(
+    "active-file-change",
+
+    ({ roomId, activeFile }) => {
+      socket.to(roomId).emit(
+        "active-file-updated",
+
+        activeFile,
+      );
+    },
+  );
+
+  socket.on(
     "typing",
 
     ({ roomId, username }: { roomId: string; username: string }) => {
