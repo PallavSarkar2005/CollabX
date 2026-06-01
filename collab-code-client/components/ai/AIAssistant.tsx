@@ -1,214 +1,218 @@
 "use client";
 
-import { Bot, Code2, Wand2, ArrowUp } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+
+import { Bot, ArrowUp, Loader2, User } from "lucide-react";
 
 import { motion } from "framer-motion";
 
+import ReactMarkdown from "react-markdown";
+
+import { askAI } from "@/services/aiService";
+
+interface Message {
+  role: "user" | "ai";
+
+  content: string;
+}
+
 export default function AIAssistant() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "ai",
+
+      content:
+        "👋 Hi, I'm your AI coding assistant. Ask me anything about code.",
+    },
+  ]);
+
+  const [input, setInput] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input;
+
+    setMessages((prev) => [
+      ...prev,
+
+      {
+        role: "user",
+
+        content: userMessage,
+      },
+    ]);
+
+    setInput("");
+
+    setLoading(true);
+
+    try {
+      const response = await askAI(userMessage);
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "ai",
+
+          content: response,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "ai",
+
+          content: "❌ AI request failed.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       className="
       h-full
       flex
       flex-col
-      bg-[#0b0f15]/90
-      min-h-0
-      overflow-hidden
+      bg-[#0b0f15]
       "
     >
       <div
         className="
         flex-1
         overflow-y-auto
-        min-h-0
         p-4
         space-y-4
         "
       >
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 10,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          className="
-          rounded-2xl
-          bg-gradient-to-br
-          from-purple-500/10
-          to-cyan-500/5
-          border
-          border-purple-500/10
-          p-4
-          "
-        >
-          <div
-            className="
-            flex
-            items-start
-            gap-3
-            "
+        {messages.map((msg, index) => (
+          <motion.div
+            key={index}
+            initial={{
+              opacity: 0,
+              y: 10,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            className={`
+                flex
+                gap-3
+
+                ${msg.role === "user" ? "justify-end" : "justify-start"}
+              `}
           >
+            {msg.role === "ai" && (
+              <div
+                className="
+                  w-8
+                  h-8
+                  rounded-xl
+                  bg-purple-500/10
+                  flex
+                  items-center
+                  justify-center
+                  shrink-0
+                  "
+              >
+                <Bot
+                  size={16}
+                  className="
+                    text-purple-400
+                    "
+                />
+              </div>
+            )}
+
             <div
-              className="
-              w-10
-              h-10
-              rounded-xl
-              bg-purple-500/10
-              flex
-              items-center
-              justify-center
-              "
+              className={`
+                  max-w-[85%]
+                  rounded-2xl
+                  px-4
+                  py-3
+                  text-sm
+                  leading-relaxed
+
+                  ${
+                    msg.role === "user"
+                      ? `
+                        bg-gradient-to-r
+                        from-cyan-500
+                        to-purple-500
+                        text-white
+                      `
+                      : `
+                        bg-white/[0.04]
+                        text-white/85
+                      `
+                  }
+                `}
             >
-              <Bot
-                className="
-                w-5
-                h-5
-                text-purple-400
-                "
-              />
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
             </div>
 
-            <div>
-              <h3
+            {msg.role === "user" && (
+              <div
                 className="
-                text-sm
-                font-medium
-                mb-1
-                "
+                  w-8
+                  h-8
+                  rounded-xl
+                  bg-cyan-500/10
+                  flex
+                  items-center
+                  justify-center
+                  shrink-0
+                  "
               >
-                AI Pair Programmer
-              </h3>
+                <User
+                  size={16}
+                  className="
+                    text-cyan-400
+                    "
+                />
+              </div>
+            )}
+          </motion.div>
+        ))}
 
-              <p
-                className="
-                text-xs
-                text-white/55
-                leading-relaxed
-                "
-              >
-                Generate code, debug issues, optimize performance, and
-                collaborate in real-time.
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <div
-          className="
-          space-y-3
-          "
-        >
+        {loading && (
           <div
             className="
-            text-[10px]
-            uppercase
-            tracking-[0.3em]
-            text-white/25
-            px-1
+            flex
+            items-center
+            gap-2
+            text-white/50
+            text-sm
             "
           >
-            Quick Actions
+            <Loader2
+              size={16}
+              className="
+              animate-spin
+              "
+            />
+            AI thinking...
           </div>
+        )}
 
-          <motion.button
-            whileHover={{
-              scale: 1.02,
-            }}
-            whileTap={{
-              scale: 0.98,
-            }}
-            className="
-            w-full
-            p-3
-            rounded-2xl
-            bg-white/[0.03]
-            hover:bg-white/[0.05]
-            transition-all
-            flex
-            items-center
-            gap-3
-            text-left
-            "
-          >
-            <Code2
-              className="
-              w-4
-              h-4
-              text-cyan-400
-              "
-            />
-
-            <div>
-              <div
-                className="
-                text-sm
-                "
-              >
-                Explain Code
-              </div>
-
-              <div
-                className="
-                text-xs
-                text-white/40
-                "
-              >
-                Understand selected code
-              </div>
-            </div>
-          </motion.button>
-
-          <motion.button
-            whileHover={{
-              scale: 1.02,
-            }}
-            whileTap={{
-              scale: 0.98,
-            }}
-            className="
-            w-full
-            p-3
-            rounded-2xl
-            bg-white/[0.03]
-            hover:bg-white/[0.05]
-            transition-all
-            flex
-            items-center
-            gap-3
-            text-left
-            "
-          >
-            <Wand2
-              className="
-              w-4
-              h-4
-              text-purple-400
-              "
-            />
-
-            <div>
-              <div
-                className="
-                text-sm
-                "
-              >
-                Optimize Code
-              </div>
-
-              <div
-                className="
-                text-xs
-                text-white/40
-                "
-              >
-                Improve performance & quality
-              </div>
-            </div>
-          </motion.button>
-        </div>
+        <div ref={bottomRef} />
       </div>
 
       <div
@@ -217,7 +221,6 @@ export default function AIAssistant() {
         border-t
         border-white/[0.04]
         bg-[#0b0f15]
-        shrink-0
         "
       >
         <div
@@ -228,6 +231,13 @@ export default function AIAssistant() {
           "
         >
           <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage();
+              }
+            }}
             placeholder="
             Ask AI anything...
             "
@@ -244,13 +254,9 @@ export default function AIAssistant() {
             "
           />
 
-          <motion.button
-            whileHover={{
-              scale: 1.05,
-            }}
-            whileTap={{
-              scale: 0.95,
-            }}
+          <button
+            onClick={sendMessage}
+            disabled={loading}
             className="
             w-12
             h-12
@@ -261,17 +267,13 @@ export default function AIAssistant() {
             flex
             items-center
             justify-center
-            shadow-lg
-            shadow-cyan-500/20
+            hover:scale-105
+            transition-all
+            disabled:opacity-50
             "
           >
-            <ArrowUp
-              className="
-              w-5
-              h-5
-              "
-            />
-          </motion.button>
+            <ArrowUp size={18} />
+          </button>
         </div>
       </div>
     </div>

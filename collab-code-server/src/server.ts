@@ -1,5 +1,5 @@
 import "dotenv/config";
-
+import aiRoutes from "./routes/aiRoutes";
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -14,6 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/code", codeRoutes);
+
+app.use("/api/ai", aiRoutes);
 
 const server = http.createServer(app);
 
