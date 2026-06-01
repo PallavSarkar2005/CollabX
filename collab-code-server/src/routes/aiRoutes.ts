@@ -10,60 +10,37 @@ const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-router.post(
-  "/chat",
+router.post("/", async (req, res) => {
+  try {
+    const { prompt } = req.body;
 
-  async (req, res) => {
-    try {
-      const { prompt } = req.body;
-
-      if (!prompt) {
-        return res.status(400).json({
-          error: "Prompt required",
-        });
-      }
-
-      const completion = await client.chat.completions.create({
-        model: "openai/gpt-oss-20b:free",
-
-        messages: [
-          {
-            role: "system",
-
-            content: `
-                You are an expert AI coding assistant
-                inside a collaborative IDE.
-
-                Help users:
-                - write code
-                - debug code
-                - explain code
-                - optimize code
-                - solve DSA problems
-
-                Keep answers concise and developer-focused.
-              `,
-          },
-
-          {
-            role: "user",
-
-            content: prompt,
-          },
-        ],
-      });
-
-      res.json({
-        response: completion.choices[0].message.content,
-      });
-    } catch (error: any) {
-      console.error("OpenRouter Error:", error);
-
-      res.status(500).json({
-        error: error?.message || "AI request failed",
+    if (!prompt) {
+      return res.status(400).json({
+        error: "Prompt required",
       });
     }
-  },
-);
+
+    const completion = await client.chat.completions.create({
+      model: "openai/gpt-3.5-turbo",
+
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const reply = completion.choices?.[0]?.message?.content || "No response";
+
+    res.json({ reply });
+  } catch (error: any) {
+    console.log("AI ROUTE ERROR:", error);
+
+    res.status(500).json({
+      error: "AI failed",
+    });
+  }
+});
 
 export default router;

@@ -1,36 +1,30 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Bot, ArrowUp, Loader2, User } from "lucide-react";
+import { Bot, Send, User } from "lucide-react";
 
-import { motion } from "framer-motion";
-
-import ReactMarkdown from "react-markdown";
-
-import { askAI } from "@/services/aiService";
-
-interface Message {
-  role: "user" | "ai";
-
+type Message = {
+  role: "user" | "assistant";
   content: string;
-}
+};
 
 export default function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "ai",
-
-      content:
-        "👋 Hi, I'm your AI coding assistant. Ask me anything about code.",
-    },
-  ]);
-
-  const [input, setInput] = useState("");
+  const [prompt, setPrompt] = useState("");
 
   const [loading, setLoading] = useState(false);
 
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content:
+        "Hello 👋 I am your AI coding assistant. Ask me anything about code.",
+    },
+  ]);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // AUTO SCROLL
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -38,45 +32,52 @@ export default function AIAssistant() {
     });
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  // SEND TO AI
 
-    const userMessage = input;
+  const sendPrompt = async () => {
+    if (!prompt.trim()) return;
 
-    setMessages((prev) => [
-      ...prev,
+    const userMessage: Message = {
+      role: "user",
+      content: prompt,
+    };
 
-      {
-        role: "user",
+    setMessages((prev) => [...prev, userMessage]);
 
-        content: userMessage,
-      },
-    ]);
+    const currentPrompt = prompt;
 
-    setInput("");
-
-    setLoading(true);
+    setPrompt("");
 
     try {
-      const response = await askAI(userMessage);
+      setLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/ai", {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          prompt: currentPrompt,
+        }),
+      });
+
+      const data = await response.json();
 
       setMessages((prev) => [
         ...prev,
-
         {
-          role: "ai",
-
-          content: response,
+          role: "assistant",
+          content: data.reply || "No response from AI.",
         },
       ]);
-    } catch {
+    } catch (error) {
       setMessages((prev) => [
         ...prev,
-
         {
-          role: "ai",
-
-          content: "❌ AI request failed.",
+          role: "assistant",
+          content: "❌ Failed to connect to AI server.",
         },
       ]);
     } finally {
@@ -90,191 +91,183 @@ export default function AIAssistant() {
       h-full
       flex
       flex-col
-      bg-[#0b0f15]
+      bg-[#111111]
       "
     >
+      {/* HEADER */}
+
+      <div
+        className="
+        h-12
+        border-b
+        border-white/10
+        flex
+        items-center
+        px-4
+        gap-2
+        "
+      >
+        <Bot size={18} className="text-pink-400" />
+
+        <span
+          className="
+          text-sm
+          font-semibold
+          text-white
+          "
+        >
+          AI Assistant
+        </span>
+      </div>
+
+      {/* CHAT */}
+
       <div
         className="
         flex-1
         overflow-y-auto
         p-4
-        space-y-4
+        flex
+        flex-col
+        gap-4
         "
       >
         {messages.map((msg, index) => (
-          <motion.div
+          <div
             key={index}
-            initial={{
-              opacity: 0,
-              y: 10,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
             className={`
-                flex
-                gap-3
+            flex
+            items-start
+            gap-3
 
-                ${msg.role === "user" ? "justify-end" : "justify-start"}
-              `}
+            ${msg.role === "user" ? "justify-end" : "justify-start"}
+            `}
           >
-            {msg.role === "ai" && (
+            {msg.role === "assistant" && (
               <div
                 className="
-                  w-8
-                  h-8
-                  rounded-xl
-                  bg-purple-500/10
-                  flex
-                  items-center
-                  justify-center
-                  shrink-0
-                  "
+                w-8
+                h-8
+                rounded-full
+                bg-pink-500/20
+                flex
+                items-center
+                justify-center
+                "
               >
-                <Bot
-                  size={16}
-                  className="
-                    text-purple-400
-                    "
-                />
+                <Bot size={16} />
               </div>
             )}
 
             <div
               className={`
-                  max-w-[85%]
-                  rounded-2xl
-                  px-4
-                  py-3
-                  text-sm
-                  leading-relaxed
+              max-w-[85%]
+              rounded-2xl
+              px-4
+              py-3
+              text-sm
+              whitespace-pre-wrap
+              leading-7
 
-                  ${
-                    msg.role === "user"
-                      ? `
-                        bg-gradient-to-r
-                        from-cyan-500
-                        to-purple-500
-                        text-white
-                      `
-                      : `
-                        bg-white/[0.04]
-                        text-white/85
-                      `
-                  }
-                `}
+              ${
+                msg.role === "user"
+                  ? "bg-cyan-500 text-black"
+                  : "bg-[#1e1e1e] text-white border border-white/10"
+              }
+              `}
             >
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {msg.content}
             </div>
 
             {msg.role === "user" && (
               <div
                 className="
-                  w-8
-                  h-8
-                  rounded-xl
-                  bg-cyan-500/10
-                  flex
-                  items-center
-                  justify-center
-                  shrink-0
-                  "
+                w-8
+                h-8
+                rounded-full
+                bg-cyan-500/20
+                flex
+                items-center
+                justify-center
+                "
               >
-                <User
-                  size={16}
-                  className="
-                    text-cyan-400
-                    "
-                />
+                <User size={16} />
               </div>
             )}
-          </motion.div>
+          </div>
         ))}
+
+        {/* LOADING */}
 
         {loading && (
           <div
             className="
-            flex
-            items-center
-            gap-2
             text-white/50
             text-sm
             "
           >
-            <Loader2
-              size={16}
-              className="
-              animate-spin
-              "
-            />
-            AI thinking...
+            AI is thinking...
           </div>
         )}
 
         <div ref={bottomRef} />
       </div>
 
+      {/* INPUT */}
+
       <div
         className="
-        p-4
+        h-16
         border-t
-        border-white/[0.04]
-        bg-[#0b0f15]
+        border-white/10
+        px-3
+        flex
+        items-center
+        gap-3
         "
       >
-        <div
+        <input
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              sendPrompt();
+            }
+          }}
+          placeholder="Ask AI anything..."
           className="
+          flex-1
+          h-10
+          bg-[#1e1e1e]
+          border
+          border-white/10
+          rounded-md
+          px-4
+          outline-none
+          text-sm
+          "
+        />
+
+        <button
+          onClick={sendPrompt}
+          disabled={loading}
+          className="
+          w-10
+          h-10
+          rounded-md
+          bg-gradient-to-r
+          from-cyan-500
+          to-purple-500
           flex
           items-center
-          gap-2
+          justify-center
+          hover:opacity-90
+          transition
+          disabled:opacity-50
           "
         >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                sendMessage();
-              }
-            }}
-            placeholder="
-            Ask AI anything...
-            "
-            className="
-            flex-1
-            h-12
-            rounded-2xl
-            bg-white/[0.03]
-            focus:bg-white/[0.05]
-            px-4
-            text-sm
-            outline-none
-            transition-all
-            "
-          />
-
-          <button
-            onClick={sendMessage}
-            disabled={loading}
-            className="
-            w-12
-            h-12
-            rounded-2xl
-            bg-gradient-to-r
-            from-cyan-500
-            to-purple-500
-            flex
-            items-center
-            justify-center
-            hover:scale-105
-            transition-all
-            disabled:opacity-50
-            "
-          >
-            <ArrowUp size={18} />
-          </button>
-        </div>
+          <Send size={16} />
+        </button>
       </div>
     </div>
   );

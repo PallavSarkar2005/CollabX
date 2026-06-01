@@ -1,222 +1,82 @@
 "use client";
 
-import Editor from "@monaco-editor/react";
+import { useEffect, useState } from "react";
 
-import { useEffect, useRef, useState } from "react";
+type Props = {
+  setOutput: (value: string) => void;
+  setLoading: (value: boolean) => void;
+};
 
-import { socket } from "@/services/socket";
+export default function CodeEditor({ setOutput, setLoading }: Props) {
+  const [code, setCode] = useState(`console.log("Hello CollabX");`);
 
-import { useParams } from "next/navigation";
+  const [language, setLanguage] = useState("javascript");
 
-import { runCode } from "@/services/codeService";
-
-import { useFiles } from "@/context/FileContext";
-
-import EditorToolbar from "./EditorToolbar";
-
-import FileTabs from "./FileTabs";
-
-import { Activity, Wifi, WifiOff } from "lucide-react";
-
-import toast from "react-hot-toast";
-
-interface CodeEditorProps {
-  setOutput: React.Dispatch<React.SetStateAction<string>>;
-
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-export default function CodeEditor({
-  setOutput,
-
-  setLoading,
-}: CodeEditorProps) {
-  const [connected, setConnected] = useState(false);
-
-  const [editorTheme, setEditorTheme] = useState("vs-dark");
-
-  const isRemoteChange = useRef(false);
-
-  const params = useParams();
-
-  const roomId = params.roomId as string;
-
-  const {
-    files,
-
-    setFiles,
-
-    activeFile,
-
-    setActiveFile,
-  } = useFiles();
-
-  const currentFile = files.find((file) => file.id === activeFile)!;
-
-  useEffect(() => {
-    socket.connect();
-
-    socket.on(
-      "connect",
-
-      () => {
-        setConnected(true);
-
-        const username = "User-" + socket.id?.slice(0, 4);
-
-        socket.emit(
-          "join-room",
-
-          {
-            roomId,
-            username,
-          },
-        );
-      },
-    );
-
-    socket.on(
-      "disconnect",
-
-      () => {
-        setConnected(false);
-      },
-    );
-
-    socket.on(
-      "files-updated",
-
-      (updatedFiles) => {
-        isRemoteChange.current = true;
-
-        setFiles(updatedFiles);
-      },
-    );
-
-    socket.on(
-      "active-file-updated",
-
-      (fileId) => {
-        setActiveFile(fileId);
-      },
-    );
-
-    return () => {
-      socket.off("connect");
-
-      socket.off("disconnect");
-
-      socket.off("files-updated");
-
-      socket.off("active-file-updated");
-    };
-  }, [roomId]);
-
-  const updateFileContent = (value: string | undefined) => {
-    if (isRemoteChange.current) {
-      isRemoteChange.current = false;
-
-      return;
-    }
-
-    const updated = files.map((file) => {
-      if (file.id === activeFile) {
-        return {
-          ...file,
-
-          content: value || "",
-        };
-      }
-
-      return file;
-    });
-
-    setFiles(updated);
-
-    socket.emit(
-      "file-update",
-
-      {
-        roomId,
-
-        files: updated,
-      },
-    );
-  };
-
-  const addFile = () => {
-    const newFile = {
-      id: Date.now().toString(),
-
-      name: `file${files.length + 1}.js`,
-
-      language: "javascript",
-
-      content: "",
-    };
-
-    const updatedFiles = [...files, newFile];
-
-    setFiles(updatedFiles);
-
-    setActiveFile(newFile.id);
-
-    socket.emit(
-      "file-update",
-
-      {
-        roomId,
-
-        files: updatedFiles,
-      },
-    );
-
-    socket.emit(
-      "active-file-change",
-
-      {
-        roomId,
-
-        activeFile: newFile.id,
-      },
-    );
-
-    toast.success("New file created");
-  };
-
-  const closeFile = (id: string) => {
-    if (files.length === 1) return;
-
-    const updated = files.filter((file) => file.id !== id);
-
-    setFiles(updated);
-
-    if (activeFile === id) {
-      setActiveFile(updated[0].id);
-    }
-  };
+  // RUN CODE FUNCTION
 
   const executeCode = async () => {
+    setLoading(true);
+
     try {
-      setLoading(true);
+      let output = "";
 
-      setOutput("");
+      // JAVASCRIPT
 
-      const result = await runCode(currentFile.content, currentFile.language);
+      if (language === "javascript") {
+        const logs: string[] = [];
 
-      setOutput(
-        result.stdout || result.stderr || result.compile_output || "No output",
-      );
+        const oldLog = console.log;
 
-      toast.success("Execution completed");
-    } catch {
-      toast.error("Execution failed");
+        console.log = (...args) => {
+          logs.push(args.join(" "));
+        };
 
-      setOutput("Execution failed");
+        try {
+          eval(code);
+        } catch (err: any) {
+          logs.push(err.message);
+        }
+
+        console.log = oldLog;
+
+        output = logs.join("\n");
+      }
+
+      // PYTHON
+      else if (language === "python") {
+        output = `Python runtime coming soon...
+
+${code}`;
+      }
+
+      // JAVA
+      else if (language === "java") {
+        output = `Java runtime coming soon...
+
+${code}`;
+      }
+
+      setOutput(output);
+    } catch (err: any) {
+      setOutput(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // LISTEN TO NAVBAR RUN BUTTON
+
+  useEffect(() => {
+    const handler = () => {
+      executeCode();
+    };
+
+    window.addEventListener("run-code", handler);
+
+    return () => {
+      window.removeEventListener("run-code", handler);
+    };
+  }, [code, language]);
 
   return (
     <div
@@ -224,231 +84,96 @@ export default function CodeEditor({
       h-full
       flex
       flex-col
-      bg-[#0d1117]
-      overflow-hidden
+      bg-[#1e1e1e]
       "
     >
-      <FileTabs
-        files={files}
-        activeFile={activeFile}
-        setActiveFile={(fileId) => {
-          setActiveFile(fileId);
-
-          socket.emit(
-            "active-file-change",
-
-            {
-              roomId,
-
-              activeFile: fileId,
-            },
-          );
-        }}
-        addFile={addFile}
-        closeFile={closeFile}
-      />
+      {/* TOP BAR */}
 
       <div
         className="
-        h-10
+        h-12
         border-b
         border-white/10
         flex
         items-center
         justify-between
         px-4
-        bg-[#0b0f15]
         "
       >
-        <div
-          className="
-          flex
-          items-center
-          gap-3
-          "
-        >
+        <div className="flex items-center gap-3">
           <div
             className="
-            flex
-            items-center
-            gap-2
-            text-xs
-            text-white/60
-            "
-          >
-            <Activity
-              size={14}
-              className="
-              text-green-400
-              "
-            />
-
-            {currentFile.name}
-          </div>
-
-          <div
-            className="
-            px-2
-            py-1
-            rounded-md
-            bg-white/[0.04]
+            px-4
+            py-2
+            bg-[#2d2d2d]
+            rounded-t-md
             border
             border-white/10
-            text-[11px]
-            text-white/50
-            uppercase
+            text-sm
             "
           >
-            {currentFile.language}
+            main.js
           </div>
-        </div>
 
-        <div
-          className="
-          flex
-          items-center
-          gap-3
-          "
-        >
           <button
-            onClick={() =>
-              setEditorTheme(editorTheme === "vs-dark" ? "light" : "vs-dark")
-            }
             className="
-            text-xs
-            px-3
-            py-1.5
-            rounded-lg
-            bg-white/[0.04]
-            border
-            border-white/10
-            hover:bg-white/[0.08]
-            transition
+            text-xl
+            text-white/50
+            hover:text-white
             "
           >
-            Theme
+            +
           </button>
-
-          <div
-            className="
-            flex
-            items-center
-            gap-2
-            text-xs
-            "
-          >
-            {connected ? (
-              <>
-                <Wifi
-                  size={14}
-                  className="
-                  text-green-400
-                  "
-                />
-
-                <span
-                  className="
-                  text-green-400
-                  "
-                >
-                  Connected
-                </span>
-              </>
-            ) : (
-              <>
-                <WifiOff
-                  size={14}
-                  className="
-                  text-red-400
-                  "
-                />
-
-                <span
-                  className="
-                  text-red-400
-                  "
-                >
-                  Offline
-                </span>
-              </>
-            )}
-          </div>
         </div>
+
+        {/* LANGUAGE */}
+
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="
+          bg-[#252526]
+          border
+          border-white/10
+          px-3
+          py-2
+          rounded-md
+          text-sm
+          outline-none
+          "
+        >
+          <option value="javascript">JavaScript</option>
+
+          <option value="python">Python</option>
+
+          <option value="java">Java</option>
+        </select>
       </div>
 
-      <EditorToolbar
-        language={currentFile.language}
-        setLanguage={(language) => {
-          const updated = files.map((file) => {
-            if (file.id === activeFile) {
-              return {
-                ...file,
-
-                language,
-              };
-            }
-
-            return file;
-          });
-
-          setFiles(updated);
-
-          socket.emit(
-            "file-update",
-
-            {
-              roomId,
-
-              files: updated,
-            },
-          );
-        }}
-        run={executeCode}
-      />
+      {/* EDITOR */}
 
       <div
         className="
         flex-1
-        overflow-hidden
+        p-6
+        overflow-auto
         "
       >
-        <Editor
-          height="100%"
-          language={currentFile.language}
-          theme={editorTheme}
-          value={currentFile.content}
-          onChange={updateFileContent}
-          options={{
-            fontSize: 15,
-
-            minimap: {
-              enabled: false,
-            },
-
-            smoothScrolling: true,
-
-            cursorBlinking: "smooth",
-
-            cursorSmoothCaretAnimation: "on",
-
-            fontLigatures: true,
-
-            padding: {
-              top: 20,
-            },
-
-            wordWrap: "on",
-
-            automaticLayout: true,
-
-            scrollBeyondLastLine: false,
-
-            renderLineHighlight: "all",
-
-            roundedSelection: true,
-
-            tabSize: 2,
-          }}
+        <textarea
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          spellCheck={false}
+          className="
+          w-full
+          h-full
+          bg-transparent
+          outline-none
+          resize-none
+          font-mono
+          text-[16px]
+          leading-8
+          text-white
+          "
         />
       </div>
     </div>

@@ -1,10 +1,14 @@
 import "dotenv/config";
-import aiRoutes from "./routes/aiRoutes";
+
 import express from "express";
 import http from "http";
 import cors from "cors";
+
 import { Server } from "socket.io";
+
 import prisma from "./config/db";
+
+import aiRoutes from "./routes/aiRoutes";
 import codeRoutes from "./routes/codeRoutes";
 
 const app = express();
@@ -13,11 +17,23 @@ app.use(cors());
 
 app.use(express.json());
 
+/* ROUTES */
+
 app.use("/api/code", codeRoutes);
 
 app.use("/api/ai", aiRoutes);
 
+/* HEALTH */
+
+app.get("/", (_req, res) => {
+  res.send("🚀 CollabX backend running");
+});
+
+/* HTTP SERVER */
+
 const server = http.createServer(app);
+
+/* SOCKET.IO */
 
 const io = new Server(server, {
   cors: {
@@ -25,6 +41,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
+
+/* TYPES */
 
 interface User {
   socketId: string;
@@ -39,8 +57,12 @@ const rooms: RoomUsers = {};
 
 const saveTimers: Record<string, NodeJS.Timeout> = {};
 
+/* SOCKET CONNECTION */
+
 io.on("connection", (socket) => {
   console.log(`⚡ User connected: ${socket.id}`);
+
+  /* JOIN ROOM */
 
   socket.on(
     "join-room",
@@ -52,11 +74,9 @@ io.on("connection", (socket) => {
         rooms[roomId] = [];
       }
 
-      const existingUser = rooms[roomId].find(
-        (user) => user.socketId === socket.id,
-      );
+      const exists = rooms[roomId].find((u) => u.socketId === socket.id);
 
-      if (!existingUser) {
+      if (!exists) {
         rooms[roomId].push({
           socketId: socket.id,
           username,
@@ -66,7 +86,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit(
         "room-users",
 
-        rooms[roomId].map((user) => user.username),
+        rooms[roomId].map((u) => u.username),
       );
 
       let room = await prisma.room.findUnique({
@@ -93,6 +113,8 @@ io.on("connection", (socket) => {
       console.log(`🚀 ${username} joined room ${roomId}`);
     },
   );
+
+  /* CODE CHANGE */
 
   socket.on(
     "code-change",
@@ -123,51 +145,13 @@ io.on("connection", (socket) => {
 
           console.log(`💾 Room ${roomId} saved`);
         } catch (error) {
-          console.error(error);
+          console.log(error);
         }
       }, 1500);
     },
   );
 
-  socket.on(
-    "file-update",
-
-    ({ roomId, files }) => {
-      socket.to(roomId).emit(
-        "files-updated",
-
-        files,
-      );
-    },
-  );
-
-  socket.on(
-    "active-file-change",
-
-    ({ roomId, activeFile }) => {
-      socket.to(roomId).emit(
-        "active-file-updated",
-
-        activeFile,
-      );
-    },
-  );
-
-  socket.on(
-    "typing",
-
-    ({ roomId, username }: { roomId: string; username: string }) => {
-      socket.to(roomId).emit("user-typing", username);
-    },
-  );
-
-  socket.on(
-    "stop-typing",
-
-    ({ roomId }: { roomId: string }) => {
-      socket.to(roomId).emit("user-stop-typing");
-    },
-  );
+  /* CHAT */
 
   socket.on(
     "send-message",
@@ -193,6 +177,44 @@ io.on("connection", (socket) => {
     },
   );
 
+  /* TYPING */
+
+  socket.on(
+    "typing",
+
+    ({ roomId, username }: { roomId: string; username: string }) => {
+      socket.to(roomId).emit("user-typing", username);
+    },
+  );
+
+  socket.on(
+    "stop-typing",
+
+    ({ roomId }: { roomId: string }) => {
+      socket.to(roomId).emit("user-stop-typing");
+    },
+  );
+
+  /* FILES */
+
+  socket.on(
+    "file-update",
+
+    ({ roomId, files }) => {
+      socket.to(roomId).emit("files-updated", files);
+    },
+  );
+
+  socket.on(
+    "active-file-change",
+
+    ({ roomId, activeFile }) => {
+      socket.to(roomId).emit("active-file-updated", activeFile);
+    },
+  );
+
+  /* DISCONNECT */
+
   socket.on(
     "disconnect",
 
@@ -209,9 +231,13 @@ io.on("connection", (socket) => {
         );
 
         if (user) {
-          io.to(roomId).emit("user-left", {
-            username: user.username,
-          });
+          io.to(roomId).emit(
+            "user-left",
+
+            {
+              username: user.username,
+            },
+          );
 
           console.log(`❌ ${user.username} left room ${roomId}`);
         }
@@ -226,9 +252,7 @@ io.on("connection", (socket) => {
   );
 });
 
-app.get("/", (_req, res) => {
-  res.send("🚀 CollabX backend running");
-});
+/* START SERVER */
 
 const PORT = process.env.PORT || 5000;
 

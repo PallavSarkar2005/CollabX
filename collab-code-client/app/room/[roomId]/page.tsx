@@ -3,234 +3,66 @@
 import { useState } from "react";
 
 import Navbar from "@/components/layout/Navbar";
-
+import ActivityBar from "@/components/layout/ActivityBar";
 import Sidebar from "@/components/layout/Sidebar";
 
 import CodeEditor from "@/components/editor/CodeEditor";
 
-import AIAssistant from "@/components/ai/AIAssistant";
-
 import BottomPanel from "@/components/layout/BottomPanel";
 
-import { PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
+import AIAssistant from "@/components/ai/AIAssistant";
+
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 export default function RoomPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  const [aiCollapsed, setAiCollapsed] = useState(false);
-
   const [output, setOutput] = useState("");
 
   const [loading, setLoading] = useState(false);
 
   return (
-    <div
-      className="
-      h-screen
-      bg-[#07080d]
-      text-white
-      flex
-      flex-col
-      overflow-hidden
-      "
-    >
+    <div className="h-screen flex flex-col bg-[#1e1e1e] text-white overflow-hidden">
       <Navbar />
 
-      <div
-        className="
-        flex
-        flex-1
-        min-h-0
-        overflow-hidden
-        "
-      >
-        <div
-          className={`
-            transition-all
-            duration-300
-            border-r
-            border-white/[0.04]
-            bg-[#0b0f15]
-            shrink-0
+      <div className="flex flex-1 overflow-hidden">
+        <ActivityBar />
 
-            ${sidebarCollapsed ? "w-[58px]" : "w-[240px]"}
-          `}
-        >
-          <div
-            className="
-            h-12
-            border-b
-            border-white/[0.04]
-            flex
-            items-center
-            justify-between
-            px-3
-            "
-          >
-            {!sidebarCollapsed && (
-              <span
-                className="
-                text-[10px]
-                uppercase
-                tracking-[0.3em]
-                text-white/25
-                "
-              >
-                Explorer
-              </span>
-            )}
+        <PanelGroup direction="horizontal">
+          {/* SIDEBAR */}
 
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="
-              p-2
-              rounded-lg
-              hover:bg-white/[0.05]
-              transition
-              "
-            >
-              {sidebarCollapsed ? (
-                <PanelLeftOpen size={16} />
-              ) : (
-                <PanelLeftClose size={16} />
-              )}
-            </button>
-          </div>
+          <Panel defaultSize={16} minSize={12}>
+            <Sidebar />
+          </Panel>
 
-          <div
-            className="
-            h-[calc(100%-48px)]
-            overflow-hidden
-            "
-          >
-            {!sidebarCollapsed && <Sidebar />}
-          </div>
-        </div>
+          <PanelResizeHandle className="resize-handle" />
 
-        <div
-          className="
-          flex-1
-          flex
-          flex-col
-          min-w-0
-          min-h-0
-          overflow-hidden
-          "
-        >
-          <div
-            className="
-            flex-1
-            flex
-            min-h-0
-            overflow-hidden
-            "
-          >
-            <div
-              className="
-              flex-1
-              min-w-0
-              min-h-0
-              overflow-hidden
-              "
-            >
-              <CodeEditor setOutput={setOutput} setLoading={setLoading} />
-            </div>
+          {/* CENTER */}
 
-            <div
-              className={`
-                transition-all
-                duration-300
-                border-l
-                border-white/[0.04]
-                bg-[#0b0f15]
-                shrink-0
-                flex
-                flex-col
-                min-h-0
+          <Panel defaultSize={64}>
+            <PanelGroup direction="vertical">
+              {/* EDITOR */}
 
-                ${aiCollapsed ? "w-[58px]" : "w-[260px]"}
-              `}
-            >
-              <div
-                className="
-                h-12
-                border-b
-                border-white/[0.04]
-                flex
-                items-center
-                justify-between
-                px-3
-                shrink-0
-                "
-              >
-                {!aiCollapsed && (
-                  <div
-                    className="
-                    flex
-                    items-center
-                    gap-2
-                    "
-                  >
-                    <Sparkles
-                      size={14}
-                      className="
-                      text-purple-400
-                      "
-                    />
+              <Panel defaultSize={72}>
+                <CodeEditor setOutput={setOutput} setLoading={setLoading} />
+              </Panel>
 
-                    <span
-                      className="
-                      text-[10px]
-                      uppercase
-                      tracking-[0.3em]
-                      text-white/25
-                      "
-                    >
-                      AI Assistant
-                    </span>
-                  </div>
-                )}
+              <PanelResizeHandle className="resize-handle" />
 
-                <button
-                  onClick={() => setAiCollapsed(!aiCollapsed)}
-                  className="
-                  p-2
-                  rounded-lg
-                  hover:bg-white/[0.05]
-                  transition
-                  "
-                >
-                  {aiCollapsed ? (
-                    <PanelLeftOpen size={16} />
-                  ) : (
-                    <PanelLeftClose size={16} />
-                  )}
-                </button>
-              </div>
+              {/* TERMINAL */}
 
-              <div
-                className="
-                flex-1
-                min-h-0
-                overflow-hidden
-                "
-              >
-                {!aiCollapsed && <AIAssistant />}
-              </div>
-            </div>
-          </div>
+              <Panel defaultSize={28} minSize={18}>
+                <BottomPanel output={output} loading={loading} />
+              </Panel>
+            </PanelGroup>
+          </Panel>
 
-          <div
-            className="
-            h-[240px]
-            shrink-0
-            border-t
-            border-white/[0.04]
-            "
-          >
-            <BottomPanel output={output} loading={loading} />
-          </div>
-        </div>
+          <PanelResizeHandle className="resize-handle" />
+
+          {/* AI */}
+
+          <Panel defaultSize={20} minSize={16}>
+            <AIAssistant />
+          </Panel>
+        </PanelGroup>
       </div>
     </div>
   );
