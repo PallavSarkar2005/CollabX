@@ -1,18 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+
+interface FileItem {
+  id: string;
+  name: string;
+  language: string;
+  content: string;
+}
 
 type Props = {
+  file: FileItem;
+
+  files: FileItem[];
+
+  setFiles: React.Dispatch<React.SetStateAction<FileItem[]>>;
+
   setOutput: (value: string) => void;
+
   setLoading: (value: boolean) => void;
 };
 
-export default function CodeEditor({ setOutput, setLoading }: Props) {
-  const [code, setCode] = useState(`console.log("Hello CollabX");`);
-
-  const [language, setLanguage] = useState("javascript");
-
-  // RUN CODE FUNCTION
+export default function CodeEditor({
+  file,
+  files,
+  setFiles,
+  setOutput,
+  setLoading,
+}: Props) {
+  const updateCode = (value: string) => {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === file.id
+          ? {
+              ...f,
+              content: value,
+            }
+          : f,
+      ),
+    );
+  };
 
   const executeCode = async () => {
     setLoading(true);
@@ -20,9 +47,7 @@ export default function CodeEditor({ setOutput, setLoading }: Props) {
     try {
       let output = "";
 
-      // JAVASCRIPT
-
-      if (language === "javascript") {
+      if (file.language === "javascript") {
         const logs: string[] = [];
 
         const oldLog = console.log;
@@ -32,7 +57,7 @@ export default function CodeEditor({ setOutput, setLoading }: Props) {
         };
 
         try {
-          eval(code);
+          eval(file.content);
         } catch (err: any) {
           logs.push(err.message);
         }
@@ -40,20 +65,10 @@ export default function CodeEditor({ setOutput, setLoading }: Props) {
         console.log = oldLog;
 
         output = logs.join("\n");
-      }
+      } else {
+        output = `${file.language} execution will be connected to Judge0 next.
 
-      // PYTHON
-      else if (language === "python") {
-        output = `Python runtime coming soon...
-
-${code}`;
-      }
-
-      // JAVA
-      else if (language === "java") {
-        output = `Java runtime coming soon...
-
-${code}`;
+${file.content}`;
       }
 
       setOutput(output);
@@ -63,8 +78,6 @@ ${code}`;
       setLoading(false);
     }
   };
-
-  // LISTEN TO NAVBAR RUN BUTTON
 
   useEffect(() => {
     const handler = () => {
@@ -76,7 +89,7 @@ ${code}`;
     return () => {
       window.removeEventListener("run-code", handler);
     };
-  }, [code, language]);
+  }, [file]);
 
   return (
     <div
@@ -87,7 +100,7 @@ ${code}`;
       bg-[#1e1e1e]
       "
     >
-      {/* TOP BAR */}
+      {/* TAB BAR */}
 
       <div
         className="
@@ -96,58 +109,61 @@ ${code}`;
         border-white/10
         flex
         items-center
-        justify-between
-        px-4
+        px-3
         "
       >
-        <div className="flex items-center gap-3">
-          <div
+        <div
+          className="
+          px-4
+          py-2
+          bg-[#2d2d2d]
+          border
+          border-white/10
+          rounded-t-md
+          text-sm
+          "
+        >
+          {file.name}
+        </div>
+
+        <div className="ml-auto">
+          <select
+            value={file.language}
+            onChange={(e) => {
+              const newLang = e.target.value;
+
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.id === file.id
+                    ? {
+                        ...f,
+                        language: newLang,
+                      }
+                    : f,
+                ),
+              );
+            }}
             className="
-            px-4
-            py-2
-            bg-[#2d2d2d]
-            rounded-t-md
+            bg-[#252526]
             border
             border-white/10
+            px-3
+            py-2
+            rounded-md
             text-sm
             "
           >
-            main.js
-          </div>
+            <option value="javascript">JavaScript</option>
 
-          <button
-            className="
-            text-xl
-            text-white/50
-            hover:text-white
-            "
-          >
-            +
-          </button>
+            <option value="typescript">TypeScript</option>
+
+            <option value="python">Python</option>
+
+            <option value="java">Java</option>
+
+            <option value="cpp">C++</option>
+          </select>
         </div>
-
-        {/* LANGUAGE */}
-
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="
-          bg-[#252526]
-          border
-          border-white/10
-          px-3
-          py-2
-          rounded-md
-          text-sm
-          outline-none
-          "
-        >
-          <option value="javascript">JavaScript</option>
-
-          <option value="python">Python</option>
-
-          <option value="java">Java</option>
-        </select>
       </div>
 
       {/* EDITOR */}
@@ -155,13 +171,13 @@ ${code}`;
       <div
         className="
         flex-1
-        p-6
-        overflow-auto
+        p-4
+        overflow-hidden
         "
       >
         <textarea
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
+          value={file.content}
+          onChange={(e) => updateCode(e.target.value)}
           spellCheck={false}
           className="
           w-full
@@ -170,8 +186,8 @@ ${code}`;
           outline-none
           resize-none
           font-mono
-          text-[16px]
-          leading-8
+          text-[15px]
+          leading-7
           text-white
           "
         />

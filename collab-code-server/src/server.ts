@@ -64,195 +64,149 @@ io.on("connection", (socket) => {
 
   /* JOIN ROOM */
 
-  socket.on(
-    "join-room",
+  socket.on("join-room", async ({ roomId, username }) => {
+    socket.join(roomId);
 
-    async ({ roomId, username }: { roomId: string; username: string }) => {
-      socket.join(roomId);
+    if (!rooms[roomId]) {
+      rooms[roomId] = [];
+    }
 
-      if (!rooms[roomId]) {
-        rooms[roomId] = [];
-      }
+    const exists = rooms[roomId].find((u) => u.socketId === socket.id);
 
-      const exists = rooms[roomId].find((u) => u.socketId === socket.id);
+    if (!exists) {
+      rooms[roomId].push({
+        socketId: socket.id,
+        username,
+      });
+    }
 
-      if (!exists) {
-        rooms[roomId].push({
-          socketId: socket.id,
-          username,
-        });
-      }
+    io.to(roomId).emit(
+      "room-users",
+      rooms[roomId].map((u) => u.username),
+    );
 
-      io.to(roomId).emit(
-        "room-users",
+    let room = await prisma.room.findUnique({
+      where: {
+        id: roomId,
+      },
+    });
 
-        rooms[roomId].map((u) => u.username),
-      );
+    if (!room) {
+      room = await prisma.room.create({
+        data: {
+          id: roomId,
 
-      let room = await prisma.room.findUnique({
+          files: [
+            {
+              id: "1",
+              name: "main.js",
+              language: "javascript",
+              content: 'console.log("Hello CollabX");',
+            },
+          ],
+        },
+      });
+    }
+
+    socket.emit("load-files", room.files);
+
+    socket.to(roomId).emit("user-joined", {
+      username,
+    });
+
+    console.log(`🚀 ${username} joined room ${roomId}`);
+  });
+
+  /* SAVE FILES */
+
+  socket.on("save-files", async ({ roomId, files }) => {
+    console.log("========== SAVE ==========");
+    console.log(JSON.stringify(files, null, 2));
+    try {
+      await prisma.room.update({
         where: {
           id: roomId,
         },
+
+        data: {
+          files,
+        },
       });
 
-      if (!room) {
-        room = await prisma.room.create({
-          data: {
-            id: roomId,
-            code: "",
-          },
-        });
-      }
+      console.log("DATABASE UPDATED");
 
-      socket.emit("load-code", room.code);
+      socket.to(roomId).emit("files-updated", files);
 
-      socket.to(roomId).emit("user-joined", {
-        username,
-      });
-
-      console.log(`🚀 ${username} joined room ${roomId}`);
-    },
-  );
+      console.log(`💾 Files saved for ${roomId}`);
+    } catch (error) {
+      console.log(error);
+    }
+  });
 
   /* CODE CHANGE */
 
-  socket.on(
-    "code-change",
+  socket.on("code-change", ({ roomId, fileId, code }) => {
+    socket.to(roomId).emit("code-update", {
+      fileId,
+      code,
+    });
+  });
 
-    ({ roomId, code }: { roomId: string; code: string }) => {
-      socket.to(roomId).emit("code-update", code);
+  /* ACTIVE FILE */
 
-      if (saveTimers[roomId]) {
-        clearTimeout(saveTimers[roomId]);
-      }
-
-      saveTimers[roomId] = setTimeout(async () => {
-        try {
-          await prisma.room.upsert({
-            where: {
-              id: roomId,
-            },
-
-            update: {
-              code,
-            },
-
-            create: {
-              id: roomId,
-              code,
-            },
-          });
-
-          console.log(`💾 Room ${roomId} saved`);
-        } catch (error) {
-          console.log(error);
-        }
-      }, 1500);
-    },
-  );
+  socket.on("active-file-change", ({ roomId, activeFile }) => {
+    socket.to(roomId).emit("active-file-updated", activeFile);
+  });
 
   /* CHAT */
 
-  socket.on(
-    "send-message",
-
-    ({
-      roomId,
-      message,
+  socket.on("send-message", ({ roomId, message, username }) => {
+    io.to(roomId).emit("receive-message", {
       username,
-    }: {
-      roomId: string;
-      message: string;
-      username: string;
-    }) => {
-      io.to(roomId).emit(
-        "receive-message",
-
-        {
-          username,
-          message,
-          time: new Date().toLocaleTimeString(),
-        },
-      );
-    },
-  );
+      message,
+      time: new Date().toLocaleTimeString(),
+    });
+  });
 
   /* TYPING */
 
-  socket.on(
-    "typing",
+  socket.on("typing", ({ roomId, username }) => {
+    socket.to(roomId).emit("user-typing", username);
+  });
 
-    ({ roomId, username }: { roomId: string; username: string }) => {
-      socket.to(roomId).emit("user-typing", username);
-    },
-  );
-
-  socket.on(
-    "stop-typing",
-
-    ({ roomId }: { roomId: string }) => {
-      socket.to(roomId).emit("user-stop-typing");
-    },
-  );
-
-  /* FILES */
-
-  socket.on(
-    "file-update",
-
-    ({ roomId, files }) => {
-      socket.to(roomId).emit("files-updated", files);
-    },
-  );
-
-  socket.on(
-    "active-file-change",
-
-    ({ roomId, activeFile }) => {
-      socket.to(roomId).emit("active-file-updated", activeFile);
-    },
-  );
+  socket.on("stop-typing", ({ roomId }) => {
+    socket.to(roomId).emit("user-stop-typing");
+  });
 
   /* DISCONNECT */
 
-  socket.on(
-    "disconnect",
+  socket.on("disconnect", () => {
+    Object.keys(rooms).forEach((roomId) => {
+      const user = rooms[roomId].find((u) => u.socketId === socket.id);
 
-    () => {
-      Object.keys(rooms).forEach((roomId) => {
-        const user = rooms[roomId].find((u) => u.socketId === socket.id);
+      rooms[roomId] = rooms[roomId].filter((u) => u.socketId !== socket.id);
 
-        rooms[roomId] = rooms[roomId].filter((u) => u.socketId !== socket.id);
+      io.to(roomId).emit(
+        "room-users",
+        rooms[roomId].map((u) => u.username),
+      );
 
-        io.to(roomId).emit(
-          "room-users",
+      if (user) {
+        io.to(roomId).emit("user-left", {
+          username: user.username,
+        });
 
-          rooms[roomId].map((u) => u.username),
-        );
+        console.log(`❌ ${user.username} left room ${roomId}`);
+      }
 
-        if (user) {
-          io.to(roomId).emit(
-            "user-left",
+      if (rooms[roomId].length === 0) {
+        delete rooms[roomId];
+      }
+    });
 
-            {
-              username: user.username,
-            },
-          );
-
-          console.log(`❌ ${user.username} left room ${roomId}`);
-        }
-
-        if (rooms[roomId].length === 0) {
-          delete rooms[roomId];
-        }
-      });
-
-      console.log(`🔌 Disconnected: ${socket.id}`);
-    },
-  );
+    console.log(`🔌 Disconnected: ${socket.id}`);
+  });
 });
-
-/* START SERVER */
 
 const PORT = process.env.PORT || 5000;
 
