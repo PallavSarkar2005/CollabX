@@ -45,35 +45,28 @@ export default function CodeEditor({
     setLoading(true);
 
     try {
-      let output = "";
+      const response = await fetch("http://localhost:5000/api/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceCode: file.content,
+          language: file.language,
+        }),
+      });
 
-      if (file.language === "javascript") {
-        const logs: string[] = [];
+      const data = await response.json();
 
-        const oldLog = console.log;
-
-        console.log = (...args) => {
-          logs.push(args.join(" "));
-        };
-
-        try {
-          eval(file.content);
-        } catch (err: any) {
-          logs.push(err.message);
-        }
-
-        console.log = oldLog;
-
-        output = logs.join("\n");
-      } else {
-        output = `${file.language} execution will be connected to Judge0 next.
-
-${file.content}`;
-      }
-
-      setOutput(output);
-    } catch (err: any) {
-      setOutput(err.message);
+      setOutput(
+        data.stdout ||
+          data.stderr ||
+          data.compile_output ||
+          data.message ||
+          "No Output",
+      );
+    } catch (error: any) {
+      setOutput(error.message || "Execution failed");
     } finally {
       setLoading(false);
     }
@@ -154,13 +147,9 @@ ${file.content}`;
             "
           >
             <option value="javascript">JavaScript</option>
-
             <option value="typescript">TypeScript</option>
-
             <option value="python">Python</option>
-
             <option value="java">Java</option>
-
             <option value="cpp">C++</option>
           </select>
         </div>

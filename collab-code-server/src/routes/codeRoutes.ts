@@ -1,83 +1,103 @@
 import express from "express";
-
 import fs from "fs";
-
 import path from "path";
-
 import { exec } from "child_process";
-
+import { promisify } from "util";
 import { v4 as uuid } from "uuid";
 
 const router = express.Router();
 
-router.post(
-  "/run",
+const execAsync = promisify(exec);
 
-  async (req, res) => {
-    try {
-      const { code, language } = req.body;
+router.post("/run", async (req, res) => {
+  let filePath = "";
+  let classFile = "";
 
-      const jobId = uuid();
+  try {
+    const { code, language } = req.body;
 
-      const tempDir = path.join(__dirname, "../../temp");
+    if (!code || !language) {
+      return res.status(400).json({
+        stderr: "Code and language are required",
+      });
+    }
 
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir);
-      }
+    const jobId = uuid();
 
-      let filePath = "";
+    const tempDir = path.join(process.cwd(), "temp");
 
-      let command = "";
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-      if (language === "javascript") {
+    let command = "";
+
+    switch (language) {
+      case "javascript":
         filePath = path.join(tempDir, `${jobId}.js`);
 
         fs.writeFileSync(filePath, code);
 
         command = `node "${filePath}"`;
-      } else if (language === "java") {
-        const className = "Main";
+        break;
 
-        filePath = path.join(tempDir, `${className}.java`);
+      case "python":
+        filePath = path.join(tempDir, `${jobId}.py`);
 
         fs.writeFileSync(filePath, code);
 
-        command = `cd "${tempDir}" && javac ${className}.java && java ${className}`;
-      } else {
-        return res.status(400).json({
-          stderr: "Language not supported yet",
-        });
+        command = `python "${filePath}"`;
+        break;
+
+      case "java": {
+        const className = `Main${jobId.replace(/-/g, "")}`;
+
+        const javaCode = code.replace(
+          /public\s+class\s+Main/g,
+          `public class ${className}`,
+        );
+
+        filePath = path.join(tempDir, `${className}.java`);
+
+        classFile = path.join(tempDir, `${className}.class`);
+
+        fs.writeFileSync(filePath, javaCode);
+
+        command = `cd "${tempDir}" && javac "${className}.java" && java ${className}`;
+
+        break;
       }
 
-      exec(
-        command,
-
-        (error, stdout, stderr) => {
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-            }
-          } catch {}
-
-          if (error) {
-            return res.json({
-              stderr: stderr || error.message,
-            });
-          }
-
-          return res.json({
-            stdout,
-          });
-        },
-      );
-    } catch (error) {
-      console.error(error);
-
-      return res.status(500).json({
-        stderr: "Execution failed",
-      });
+      default:
+        return res.status(400).json({
+          stderr: `${language} is not supported`,
+        });
     }
-  },
-);
+
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 5000,
+      maxBuffer: 1024 * 1024,
+    });
+
+    return res.json({
+      stdout,
+      stderr,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      stderr: error.stderr || error.message || "Execution failed",
+    });
+  } finally {
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      if (classFile && fs.existsSync(classFile)) {
+        fs.unlinkSync(classFile);
+      }
+    } catch {}
+  }
+});
 
 export default router;

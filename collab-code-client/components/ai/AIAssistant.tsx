@@ -18,7 +18,6 @@ export default function AIAssistant({
   language = "javascript",
 }: Props) {
   const [prompt, setPrompt] = useState("");
-
   const [loading, setLoading] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
@@ -37,19 +36,18 @@ export default function AIAssistant({
     });
   }, [messages]);
 
-  /* NORMAL CHAT */
-
   const sendPrompt = async () => {
     if (!prompt.trim()) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: prompt,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-
     const currentPrompt = prompt;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: currentPrompt,
+      },
+    ]);
 
     setPrompt("");
 
@@ -58,11 +56,9 @@ export default function AIAssistant({
 
       const response = await fetch("http://localhost:5000/api/ai", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           prompt: currentPrompt,
         }),
@@ -74,7 +70,7 @@ export default function AIAssistant({
         ...prev,
         {
           role: "assistant",
-          content: data.reply || "No response from AI.",
+          content: data.response || data.message || "No response from AI.",
         },
       ]);
     } catch {
@@ -90,10 +86,8 @@ export default function AIAssistant({
     }
   };
 
-  /* AI ACTIONS */
-
   const runAction = async (action: string) => {
-    if (!code) {
+    if (!code?.trim()) {
       setMessages((prev) => [
         ...prev,
         {
@@ -101,7 +95,6 @@ export default function AIAssistant({
           content: "⚠ No code available in current file.",
         },
       ]);
-
       return;
     }
 
@@ -110,11 +103,9 @@ export default function AIAssistant({
 
       const response = await fetch("http://localhost:5000/api/ai", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           action,
           code,
@@ -128,7 +119,7 @@ export default function AIAssistant({
         ...prev,
         {
           role: "assistant",
-          content: data.reply || data.response || "No response.",
+          content: data.response || data.message || "No response from AI.",
         },
       ]);
     } catch {
@@ -146,15 +137,10 @@ export default function AIAssistant({
 
   return (
     <div className="h-full flex flex-col bg-[#111111]">
-      {/* HEADER */}
-
       <div className="h-12 border-b border-white/10 flex items-center px-4 gap-2">
         <Bot size={18} className="text-pink-400" />
-
         <span className="text-sm font-semibold text-white">AI Assistant</span>
       </div>
-
-      {/* ACTION BUTTONS */}
 
       <div className="p-3 border-b border-white/10">
         <div className="grid grid-cols-2 gap-2">
@@ -195,8 +181,6 @@ export default function AIAssistant({
         </div>
       </div>
 
-      {/* CHAT */}
-
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {messages.map((msg, index) => (
           <div
@@ -235,8 +219,6 @@ export default function AIAssistant({
 
         <div ref={bottomRef} />
       </div>
-
-      {/* INPUT */}
 
       <div className="h-16 border-t border-white/10 px-3 flex items-center gap-3">
         <input

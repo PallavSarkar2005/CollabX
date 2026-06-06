@@ -3,23 +3,27 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { Server } from "socket.io";
+
 import prisma from "./config/db";
+
 import aiRoutes from "./routes/aiRoutes";
 import codeRoutes from "./routes/codeRoutes";
+import codeExecutionRoutes from "./routes/codeExecutionRoutes";
 
 const app = express();
 
 app.use(cors());
-
 app.use(express.json());
 
 /* ROUTES */
 
 app.use("/api/code", codeRoutes);
 
+app.use("/api/run", codeExecutionRoutes);
+
 app.use("/api/ai", aiRoutes);
 
-/* HEALTH */
+/* HEALTH CHECK */
 
 app.get("/", (_req, res) => {
   res.send("🚀 CollabX backend running");
@@ -29,7 +33,7 @@ app.get("/", (_req, res) => {
 
 const server = http.createServer(app);
 
-/* SOCKET.IO */
+/* SOCKET SERVER */
 
 const io = new Server(server, {
   cors: {
@@ -51,8 +55,6 @@ type RoomUsers = {
 
 const rooms: RoomUsers = {};
 
-const saveTimers: Record<string, NodeJS.Timeout> = {};
-
 /* SOCKET CONNECTION */
 
 io.on("connection", (socket) => {
@@ -61,75 +63,75 @@ io.on("connection", (socket) => {
   /* JOIN ROOM */
 
   socket.on("join-room", async ({ roomId, username }) => {
-    socket.join(roomId);
+    try {
+      socket.join(roomId);
 
-    if (!rooms[roomId]) {
-      rooms[roomId] = [];
-    }
+      if (!rooms[roomId]) {
+        rooms[roomId] = [];
+      }
 
-    const exists = rooms[roomId].find((u) => u.socketId === socket.id);
+      const existingUser = rooms[roomId].find(
+        (user) => user.socketId === socket.id,
+      );
 
-    if (!exists) {
-      rooms[roomId].push({
-        socketId: socket.id,
-        username,
-      });
-    }
+      if (!existingUser) {
+        rooms[roomId].push({
+          socketId: socket.id,
+          username,
+        });
+      }
 
-    io.to(roomId).emit(
-      "room-users",
-      rooms[roomId].map((u) => u.username),
-    );
+      io.to(roomId).emit(
+        "room-users",
+        rooms[roomId].map((user) => user.username),
+      );
 
-    let room = await prisma.room.findUnique({
-      where: {
-        id: roomId,
-      },
-    });
-
-    if (!room) {
-      room = await prisma.room.create({
-        data: {
+      let room = await prisma.room.findUnique({
+        where: {
           id: roomId,
-
-          files: [
-            {
-              id: "1",
-              name: "main.js",
-              language: "javascript",
-              content: 'console.log("Hello CollabX");',
-            },
-          ],
         },
       });
+
+      if (!room) {
+        room = await prisma.room.create({
+          data: {
+            id: roomId,
+            files: [
+              {
+                id: "1",
+                name: "main.js",
+                language: "javascript",
+                content: 'console.log("Hello CollabX");',
+              },
+            ],
+          },
+        });
+      }
+
+      socket.emit("load-files", room.files);
+
+      socket.to(roomId).emit("user-joined", {
+        username,
+      });
+
+      console.log(`🚀 ${username} joined room ${roomId}`);
+    } catch (error) {
+      console.log(error);
     }
-
-    socket.emit("load-files", room.files);
-
-    socket.to(roomId).emit("user-joined", {
-      username,
-    });
-
-    console.log(`🚀 ${username} joined room ${roomId}`);
   });
 
   /* SAVE FILES */
 
   socket.on("save-files", async ({ roomId, files }) => {
-    console.log("========== SAVE ==========");
-    console.log(JSON.stringify(files, null, 2));
     try {
       await prisma.room.update({
         where: {
           id: roomId,
         },
-
         data: {
           files,
         },
       });
-
-      console.log("DATABASE UPDATED");
 
       socket.to(roomId).emit("files-updated", files);
 
@@ -139,7 +141,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  /* CODE CHANGE */
+  /* LIVE CODE SYNC */
 
   socket.on("code-change", ({ roomId, fileId, code }) => {
     socket.to(roomId).emit("code-update", {
@@ -148,7 +150,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  /* ACTIVE FILE */
+  /* ACTIVE FILE SYNC */
 
   socket.on("active-file-change", ({ roomId, activeFile }) => {
     socket.to(roomId).emit("active-file-updated", activeFile);
@@ -164,7 +166,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  /* TYPING */
+  /* TYPING INDICATOR */
 
   socket.on("typing", ({ roomId, username }) => {
     socket.to(roomId).emit("user-typing", username);
@@ -203,6 +205,8 @@ io.on("connection", (socket) => {
     console.log(`🔌 Disconnected: ${socket.id}`);
   });
 });
+
+/* START SERVER */
 
 const PORT = process.env.PORT || 5000;
 
