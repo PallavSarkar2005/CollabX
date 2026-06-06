@@ -212,7 +212,10 @@ export default function RoomPage() {
           {/* AI */}
 
           <Panel defaultSize={20} minSize={16}>
-            <AIAssistant />
+            <AIAssistant
+              code={activeFile?.content}
+              language={activeFile?.language}
+            />
           </Panel>
         </PanelGroup>
       </div>
